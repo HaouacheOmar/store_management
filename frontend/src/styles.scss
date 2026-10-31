@@ -107,6 +107,17 @@ html, body { height: 100%; }
 }
 .danger { --mat-button-filled-container-color: var(--mat-sys-error); --mat-button-filled-label-text-color: var(--mat-sys-on-error); }
 
+// Cloche des alertes de stock (menu en overlay, hors du composant)
+.bell-menu {
+  min-width: 300px !important;
+  .bell-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 16px; }
+  .bell-empty { padding: 8px 16px; margin: 0; color: var(--mat-sys-on-surface-variant); }
+  // spécificité suffisante pour passer devant le style par défaut des éléments de menu Material
+  .mat-mdc-menu-item.unread { font-weight: 600; background: var(--mat-sys-secondary-container); }
+  .mat-icon { color: #b26a00; }
+  .mat-icon.out { color: var(--mat-sys-error); }
+}
+
 // Remise appliquée
 .discount-badge {
   display: inline-block;

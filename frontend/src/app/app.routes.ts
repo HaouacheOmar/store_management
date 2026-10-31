@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { anonymousGuard, authGuard } from './core/auth/guards';
+import { anonymousGuard, authGuard, permissionGuard } from './core/auth/guards';
 
 export const routes: Routes = [
   {
@@ -54,6 +54,11 @@ export const routes: Routes = [
       {
         path: 'discounts',
         loadComponent: () => import('./features/discounts/discounts').then((m) => m.Discounts),
+      },
+      {
+        path: 'users',
+        canActivate: [permissionGuard('USER_MANAGE')],
+        loadComponent: () => import('./features/users/users').then((m) => m.Users),
       },
     ],
   },

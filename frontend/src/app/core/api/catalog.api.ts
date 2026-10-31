@@ -132,6 +132,10 @@ export class CatalogApi {
     return this.http.get<Page<Product>>('/api/catalog/products', { params });
   }
 
+  product(id: number) {
+    return this.http.get<Product>(`/api/catalog/products/${id}`);
+  }
+
   createProduct(input: ProductInput) {
     return this.http.post<Product>('/api/catalog/products', input);
   }

@@ -114,7 +114,7 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway, et chaque se
 - **Routes internes** : `InternalApiFilter` (module `common`) exige l'en-tête `X-Internal-Token` = `INTERNAL_SECRET` sur `/internal/**`, comparé en temps constant ; sans secret configuré, tout `/internal/**` est refusé. Un utilisateur qui joindrait directement un service avec son propre JWT (même avec la bonne permission) reçoit 403. Le JWT reste exigé en plus : le service appelé applique store et permissions du caissier.
 - **storeId toujours lu du token**, jamais du body ni de l'URL. Toutes les requêtes des repositories filtrent par `storeId` (méthodes `findByIdAndStoreId`…).
 - Les mots de passe sont hachés en BCrypt.
-- WebSocket : le JWT est passé dans le header STOMP `CONNECT`, et un `ChannelInterceptor` refuse un `SUBSCRIBE` sur un `storeId` différent de celui du token.
+- WebSocket (`/ws`, STOMP) : la poignée de main HTTP est publique (un navigateur ne peut pas y mettre d'en-tête) ; le JWT est passé dans le header STOMP `CONNECT` et validé par un `ChannelInterceptor`, qui refuse aussi tout `SUBSCRIBE` hors du topic de son store ou sans `STOCK_RESTOCK`, et tout `SEND` client. Le serveur ne pousse qu'un signal « notifications changées » (après commit) ; le navigateur relit l'API REST, seule source de vérité avec l'état lu par utilisateur. Broker simple en mémoire : une instance de reporting (relais STOMP RabbitMQ pour en avoir plusieurs).
 - Changement de permissions : il devient effectif au prochain login (v1, pas de révocation de token).
 
 ## 4. Structure du dépôt
@@ -212,7 +212,7 @@ Toutes les routes sont préfixées `/api/<service>`. Pagination Spring standard 
 | GET | `/top-products?from=&to=&categoryId=&limit=&by=QTY\|REVENUE` | `STATS_VIEW` |
 | GET | `/top-categories?from=&to=&limit=&by=QTY\|REVENUE` | `STATS_VIEW` |
 | GET | `/notifications?unread=true` | connecté |
-| PUT | `/notifications/{id}/read` | connecté |
+| PUT | `/notifications/{id}/read`, `/notifications/read-all` | `STOCK_RESTOCK` (lecture des notifications aussi) |
 | WS | `/ws` → `/topic/stores/{storeId}/notifications` | connecté |
 
 Format d'erreur commun : `{code, message, details}` (`VALIDATION_ERROR`, `INSUFFICIENT_STOCK`, `FORBIDDEN`, `NOT_FOUND`…).
@@ -224,7 +224,7 @@ frontend/src/app/
 ├── app.config.ts  app.routes.ts
 ├── core/
 │   ├── auth/          auth.service.ts (session JWT en signal, `can(permission)`), auth.interceptor.ts, guards.ts, labels.ts
-│   ├── ws/            notification-socket.service.ts (rx-stomp)
+│   ├── notifications/ notification-center.ts (@stomp/stompjs : cloche, signal temps réel, état lu)
 │   └── layout/        shell (sidenav + toolbar + cloche notifications)
 ├── features/
 │   ├── auth/          login, register

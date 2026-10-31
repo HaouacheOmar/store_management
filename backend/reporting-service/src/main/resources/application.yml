@@ -21,6 +21,8 @@ spring:
 app:
   security:
     jwt-secret: ${JWT_SECRET}
+    # poignée de main WebSocket publique : l'authentification se fait au CONNECT STOMP (WebSocketConfig)
+    public-paths: /ws/**
 
 eureka:
   client:

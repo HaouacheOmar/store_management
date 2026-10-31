@@ -58,7 +58,8 @@ public class JwtSecurityConfig {
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
 
-    static JwtAuthenticationConverter authenticationConverter() {
+    /** Public : réutilisé pour authentifier les connexions WebSocket (STOMP CONNECT). */
+    public static JwtAuthenticationConverter authenticationConverter() {
         var converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             List<GrantedAuthority> authorities = new ArrayList<>();
