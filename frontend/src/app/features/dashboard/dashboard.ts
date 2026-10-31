@@ -1,35 +1,37 @@
 import { Component, inject } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { AuthService } from '../../core/auth/auth.service';
-import { PERMISSION_LABELS, ROLE_LABELS } from '../../core/auth/labels';
+import { PERMISSION_LABELS } from '../../core/auth/labels';
+import { AdminDashboard } from './admin-dashboard';
+import { GuestDashboard } from './guest-dashboard';
 
+/** Tableau de bord : CRM complet avec STATS_VIEW, sinon l'encaissé personnel du jour. */
 @Component({
   selector: 'app-dashboard',
-  imports: [MatCardModule, MatChipsModule],
+  imports: [MatChipsModule, AdminDashboard, GuestDashboard],
   template: `
     @if (session(); as s) {
-      <h1>Bonjour {{ s.name }}</h1>
-      <mat-card appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>{{ s.storeName }}</mat-card-title>
-          <mat-card-subtitle>{{ roles[s.role] }}</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Vos droits :</p>
-          <mat-chip-set aria-label="Vos droits">
+      <header class="page-header"><h1>Bonjour {{ s.name }}</h1></header>
+      @if (stats) {
+        <app-admin-dashboard />
+      } @else {
+        <app-guest-dashboard />
+        <section class="card rights">
+          <h2>Mes droits</h2>
+          <mat-chip-set aria-label="Mes droits">
             @for (p of s.permissions; track p) {
               <mat-chip>{{ permissions[p] ?? p }}</mat-chip>
             }
           </mat-chip-set>
-        </mat-card-content>
-      </mat-card>
+        </section>
+      }
     }
   `,
-  styles: `h1 { font: var(--mat-sys-headline-small); margin: 0 0 16px; }`,
+  styles: `.rights { margin-top: 16px; }`,
 })
 export class Dashboard {
-  protected readonly session = inject(AuthService).session;
-  protected readonly roles = ROLE_LABELS;
+  private readonly auth = inject(AuthService);
+  protected readonly session = this.auth.session;
+  protected readonly stats = this.auth.can('STATS_VIEW');
   protected readonly permissions = PERMISSION_LABELS;
 }

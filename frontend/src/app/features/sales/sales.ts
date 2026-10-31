@@ -7,12 +7,7 @@ import { MatTableModule } from '@angular/material/table';
 import { Router } from '@angular/router';
 import { SaleSummary, SalesApi } from '../../core/api/sales.api';
 import { AuthService } from '../../core/auth/auth.service';
-
-/** 'YYYY-MM-DD' local (l'input date et l'API raisonnent en jours, pas en instants UTC). */
-function today(): string {
-  const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-}
+import { localDay } from '../../shared/dates';
 
 /** Ventes du jour (PRD M7). Les ventes annulées restent visibles mais sortent des totaux. */
 @Component({
@@ -91,8 +86,8 @@ export class Sales {
   protected readonly viewAll = this.auth.can('SALES_VIEW_ALL');
   protected readonly currency = this.auth.session()?.currency ?? 'DZD';
   protected readonly columns = ['id', 'time'].concat(this.viewAll ? ['cashier'] : [], ['items', 'total', 'status']);
-  protected readonly maxDate = today();
-  protected readonly date = signal(today());
+  protected readonly maxDate = localDay();
+  protected readonly date = signal(localDay());
   protected readonly rows = signal<SaleSummary[]>([]);
   protected readonly loaded = signal(false);
 

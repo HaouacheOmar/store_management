@@ -126,3 +126,14 @@ html, body { height: 100%; }
   .receipt, .receipt * { visibility: visible; }
   .receipt { position: absolute; left: 0; top: 0; width: 80mm; border: none; margin: 0; }
 }
+
+// Cartes du tableau de bord
+.card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface);
+  h2 { font: var(--mat-sys-title-medium); margin: 0 0 12px; }
+}
+// Chiffre clé : un seul par vue, même police que le reste
+.hero { font-size: 48px; line-height: 1.1; font-weight: 500; letter-spacing: -0.5px; }

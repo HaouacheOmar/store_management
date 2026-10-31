@@ -24,6 +24,7 @@
         <module>catalog-service</module>
         <module>supplier-service</module>
         <module>sales-service</module>
+        <module>reporting-service</module>
     </modules>
 
     <properties>

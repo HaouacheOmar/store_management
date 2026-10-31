@@ -17,7 +17,7 @@ Document technique compagnon de [PRD.md](PRD.md). Schéma détaillé des bases :
 | Base de données | PostgreSQL | 16 |
 | Frontend | Angular (standalone components, signals) | 20 |
 | UI | Angular Material | 20 |
-| Graphes | ng2-charts (Chart.js) | 6.x / 4.x |
+| Graphes | Chart.js (via un composant `app-chart` de 40 lignes, chargé seulement par le tableau de bord) | 4.x |
 | WebSocket client | @stomp/rx-stomp | 2.x |
 | Build | Maven (multi-module) / Angular CLI | — |
 | Conteneurs | Docker + Docker Compose | — |
@@ -57,7 +57,7 @@ flowchart LR
 | `catalog-service` | 8082 | Catégories, produits, stock, remises, restockages (M2, M3, M5) | `catalog_db` |
 | `supplier-service` | 8083 | Fournisseurs (M4) | `supplier_db` |
 | `sales-service` | 8084 | Ventes, lignes, annulation, données du ticket (M6, M7) | `sales_db` |
-| `reporting-service` | 8085 | Agrégats de ventes, CA, graphes, notifications temps réel (M8, M9, M10) | `reporting_db` |
+| `reporting-service` | 8085 | Agrégats de ventes, CA, graphes, notifications temps réel (M8, M9, M10). Modèle de lecture en JPA (entités à clé composite) ; cumuls par `INSERT … ON CONFLICT` natif, atomique entre instances | `reporting_db` |
 
 **Règle d'or** : chaque service possède ses tables ; aucun service ne lit la base d'un autre. Entre services, les références passent par ID, avec une copie (snapshot) des données affichées.
 
@@ -242,7 +242,7 @@ frontend/src/app/
 - Routes lazy (`loadComponent`) protégées par `authGuard` (+ un `permissionGuard` quand un écran en a besoin). Affichage conditionnel : `@if (auth.can('PRODUCT_WRITE'))`, sans directive dédiée. La route par défaut après login : dashboard admin si `STATS_VIEW`, sinon dashboard guest.
 - Formulaires réactifs typés ; montants affichés via `CurrencyPipe`.
 - **Ticket** : `receipt.component` est rendu dans la page ; une feuille `@media print { @page { size: 80mm auto; margin: 0 } }` masque tout le reste, puis `window.print()`.
-- **Graphes** : `BaseChartDirective` (ng2-charts) ; les filtres (période, catégorie, top N, QTY/REVENUE) sont des contrôles de formulaire qui relancent la requête de reporting.
+- **Graphes** : Chart.js directement (`shared/chart.ts`), sans ng2-charts : chargé uniquement dans le chunk du tableau de bord. Une série par graphe (couleur unique validée, pas de légende), un seul axe, infobulle au survol et tableau « Voir les données » en alternative. Les filtres (période, catégorie, top N, quantité ou montant) relancent la requête de reporting concernée.
 - La configuration de l'URL de l'API passe par `environment.ts` (`/api`, proxifié par nginx vers la gateway en prod, par `proxy.conf.json` en dev).
 
 ## 7. Déploiement (Docker Compose)
