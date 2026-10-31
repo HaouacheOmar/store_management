@@ -30,14 +30,15 @@ public class OutboxConfig {
 
     /**
      * Les Kafka managés désactivent souvent la création automatique des topics : on les déclare
-     * (création idempotente au démarrage). Facteur de réplication : défaut du broker (1 en local, 3 en cloud).
+     * (création idempotente au démarrage). 2 partitions : maximum de l'offre Kafka gratuite d'Aiven.
+     * Facteur de réplication : défaut du broker (1 en local, 3 en cloud).
      */
     @Bean
     KafkaAdmin.NewTopics storeTopics() {
         return new KafkaAdmin.NewTopics(
-                TopicBuilder.name(Events.SALE_COMPLETED).partitions(3).build(),
-                TopicBuilder.name(Events.SALE_CANCELLED).partitions(3).build(),
-                TopicBuilder.name(Events.STOCK_LOW).partitions(3).build(),
-                TopicBuilder.name(Events.STOCK_RESTOCKED).partitions(3).build());
+                TopicBuilder.name(Events.SALE_COMPLETED).partitions(2).build(),
+                TopicBuilder.name(Events.SALE_CANCELLED).partitions(2).build(),
+                TopicBuilder.name(Events.STOCK_LOW).partitions(2).build(),
+                TopicBuilder.name(Events.STOCK_RESTOCKED).partitions(2).build());
     }
 }

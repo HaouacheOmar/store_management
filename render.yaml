@@ -36,6 +36,11 @@ envVarGroups:
         sync: false
       - key: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
         sync: false
+      # Aiven signe ses certificats avec sa propre CA (onglet « CA certificate » du service) : on la fait confiance
+      - key: SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_TYPE
+        value: PEM
+      - key: SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_CERTIFICATES
+        sync: false
 
   # URL publiques des services (offre gratuite : pas de réseau privé entrant).
   # Si Render ajoute un suffixe au nom (nom déjà pris), corrigez ces valeurs après la création.

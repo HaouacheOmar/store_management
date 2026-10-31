@@ -78,9 +78,8 @@ Prenez un fournisseur Kafka **avec une offre gratuite sans carte**, compatible S
 | `SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG` | `org.apache.kafka.common.security.plain.PlainLoginModule required username="<clé API>" password="<secret>";` | `org.apache.kafka.common.security.scram.ScramLoginModule required username="<user>" password="<mdp>";` |
 
 - **Topics.** `sale.completed`, `sale.cancelled`, `stock.low` et `stock.restocked` sont créés automatiquement au démarrage, si l'identifiant a le droit de créer des topics. Sinon, créez-les à la main, avec 3 partitions.
-- **Fournisseur avec sa propre autorité de certification (Aiven par exemple).** Ajoutez deux variables :
-  - `SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_TYPE=PEM`
-  - `SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_CERTIFICATES=<contenu du ca.pem>`
+- **Aiven (offre gratuite).** Authentification SASL activée sur le service, mécanisme `SCRAM-SHA-256`, utilisateur `avnadmin`, port SASL du service. Aiven signe ses certificats avec sa propre autorité de certification : `render.yaml` déclare déjà `SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_TYPE=PEM`. Collez le contenu de « CA certificate » (le bloc `-----BEGIN CERTIFICATE-----…`) dans `SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_CERTIFICATES`.
+- **Offre gratuite Aiven :** 5 topics maximum, avec 2 partitions chacun. Les 4 topics de l'application sont déclarés avec 2 partitions.
 
 ---
 
