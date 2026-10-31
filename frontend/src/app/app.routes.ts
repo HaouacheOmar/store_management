@@ -35,6 +35,14 @@ export const routes: Routes = [
         path: 'suppliers',
         loadComponent: () => import('./features/suppliers/suppliers').then((m) => m.Suppliers),
       },
+      {
+        path: 'restocks',
+        loadComponent: () => import('./features/stock/restocks').then((m) => m.Restocks),
+      },
+      {
+        path: 'discounts',
+        loadComponent: () => import('./features/discounts/discounts').then((m) => m.Discounts),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

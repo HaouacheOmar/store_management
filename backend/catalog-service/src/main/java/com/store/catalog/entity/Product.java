@@ -23,7 +23,11 @@ public class Product {
     private String code;
     private BigDecimal price;
 
-    /** Ne change que par vente, restockage ou annulation (jamais par l'édition du produit). */
+    /**
+     * Ne change que par vente, restockage ou annulation, via des UPDATE atomiques (ProductRepository).
+     * updatable = false : l'édition du produit ne réécrit jamais le stock, sinon elle écraserait une vente concurrente.
+     */
+    @Column(updatable = false)
     private int stockQty;
 
     private int alertThreshold;

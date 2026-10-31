@@ -69,7 +69,7 @@ flowchart LR
 |---|---|---|
 | sales → catalog | `POST /internal/stock/decrement` | Refuser la vente si le stock est insuffisant ; obtenir le prix remisé faisant foi |
 | sales → catalog | `POST /internal/stock/increment` | Annulation d'une vente |
-| catalog → supplier | `GET /internal/suppliers/{id}` | Valider le fournisseur et récupérer son nom (snapshot) |
+| catalog → supplier | `GET /suppliers/{id}` (route publique, JWT de l'utilisateur transmis) | Valider le fournisseur du store et récupérer son nom (snapshot) ; pas de route interne dédiée, la publique suffit |
 
 Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercepteur Feign propage le JWT de l'utilisateur.
 
@@ -102,7 +102,7 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercept
 
 **Annulation** : `POST /api/sales/sales/{id}/cancel` (`SALE_CANCEL`) → catalog `increment` → `status = CANCELLED` → `sale.cancelled`.
 
-**Restockage** : `POST /api/catalog/restocks` `{productId, supplierId, qty, unitCost?}` (`STOCK_RESTOCK`) → catalog → supplier (vérification et nom) → `stock_qty += qty` + ligne `restock` → `stock.restocked` → reporting résout la notification ouverte si le stock > seuil.
+**Restockage** : `POST /api/catalog/restocks` `{productId, supplierId, qty, unitCost?}` (`STOCK_RESTOCK`) → catalog → supplier (vérification et nom, appel fait hors transaction) → `UPDATE … stock_qty = stock_qty + qty` + ligne `restock` + `stock.restocked` dans l'outbox (même transaction) → reporting résout la notification ouverte si le stock > seuil.
 
 **Notification** : reporting consomme `stock.low` → insère la notification si aucune n'est ouverte pour `(store, product, type)` (index unique partiel) → push STOMP vers `/topic/stores/{storeId}/notifications`. Le statut lu/non lu est **propre à chaque utilisateur** (table `notification_read`) : `GET /notifications?unread=true` renvoie celles que l'utilisateur courant n'a pas encore lues.
 

@@ -20,6 +20,7 @@ import { CatalogApi, Category, Product, StockFilter } from '../../core/api/catal
 import { AuthService } from '../../core/auth/auth.service';
 import { confirmDialog } from '../../shared/confirm-dialog';
 import { frenchPaginator } from '../../shared/french-paginator';
+import { RestockDialog } from '../stock/restock-dialog';
 import { ProductDialog } from './product-dialog';
 
 @Component({
@@ -85,7 +86,15 @@ import { ProductDialog } from './product-dialog';
         </ng-container>
         <ng-container matColumnDef="price">
           <th mat-header-cell *matHeaderCellDef class="num">Prix</th>
-          <td mat-cell *matCellDef="let p" class="num">{{ p.price | currency: currency : 'symbol' : '1.2-2' }}</td>
+          <td mat-cell *matCellDef="let p" class="num">
+            @if (p.discountPercent > 0) {
+              <span class="discount-badge">-{{ p.discountPercent }} %</span>
+              <s class="muted">{{ p.price | currency: currency : 'symbol' : '1.2-2' }}</s>
+              <div><strong>{{ p.finalPrice | currency: currency : 'symbol' : '1.2-2' }}</strong></div>
+            } @else {
+              {{ p.price | currency: currency : 'symbol' : '1.2-2' }}
+            }
+          </td>
         </ng-container>
         <ng-container matColumnDef="stock">
           <th mat-header-cell *matHeaderCellDef class="num">Stock</th>
@@ -97,8 +106,15 @@ import { ProductDialog } from './product-dialog';
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let p" class="actions">
-            <button mat-icon-button (click)="edit(p)" [attr.aria-label]="'Modifier ' + p.name"><mat-icon>edit</mat-icon></button>
-            <button mat-icon-button (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.name"><mat-icon>delete</mat-icon></button>
+            @if (canRestock) {
+              <button mat-icon-button (click)="restock(p)" [attr.aria-label]="'Restocker ' + p.name" matTooltip="Restocker">
+                <mat-icon>add_box</mat-icon>
+              </button>
+            }
+            @if (canWrite) {
+              <button mat-icon-button (click)="edit(p)" [attr.aria-label]="'Modifier ' + p.name"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.name"><mat-icon>delete</mat-icon></button>
+            }
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -119,8 +135,11 @@ export class Products {
   private readonly auth = inject(AuthService);
 
   protected readonly canWrite = this.auth.can('PRODUCT_WRITE');
+  protected readonly canRestock = this.auth.can('STOCK_RESTOCK');
   protected readonly currency = this.auth.session()?.currency ?? 'DZD';
-  protected readonly columns = ['name', 'category', 'price', 'stock'].concat(this.canWrite ? ['actions'] : []);
+  protected readonly columns = ['name', 'category', 'price', 'stock'].concat(
+    this.canWrite || this.canRestock ? ['actions'] : [],
+  );
 
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly categoryId = signal<number | null>(null);
@@ -184,6 +203,17 @@ export class Products {
       .subscribe((saved) => {
         if (!saved) return;
         this.snack.open(product ? 'Produit modifié' : 'Produit ajouté', undefined, { duration: 2500 });
+        this.load();
+      });
+  }
+
+  restock(product: Product): void {
+    this.dialog
+      .open(RestockDialog, { data: product, width: '480px' })
+      .afterClosed()
+      .subscribe((done) => {
+        if (!done) return;
+        this.snack.open(`${product.name} restocké`, undefined, { duration: 2500 });
         this.load();
       });
   }

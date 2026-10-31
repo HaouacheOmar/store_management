@@ -106,3 +106,15 @@ html, body { height: 100%; }
   @media (max-width: 600px) { grid-template-columns: 1fr; }
 }
 .danger { --mat-button-filled-container-color: var(--mat-sys-error); --mat-button-filled-label-text-color: var(--mat-sys-on-error); }
+
+// Remise appliquée
+.discount-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 6px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-label-small);
+  font-weight: 600;
+}

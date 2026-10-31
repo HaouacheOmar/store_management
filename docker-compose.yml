@@ -26,7 +26,8 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      # CONTROLLER lié au nom du service : Kafka 3.9 refuse d'annoncer un contrôleur en 0.0.0.0
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://kafka:9093,EXTERNAL://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
@@ -68,6 +69,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/catalog_db
     depends_on:
       postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
       discovery: { condition: service_started }
 
   supplier:

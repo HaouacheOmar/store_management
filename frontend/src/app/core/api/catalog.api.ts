@@ -14,6 +14,9 @@ export interface Product {
   categoryId: number;
   categoryName: string;
   price: number;
+  /** remise active la plus forte (0 si aucune) et prix après remise */
+  discountPercent: number;
+  finalPrice: number;
   stockQty: number;
   alertThreshold: number;
   version: number;
@@ -44,6 +47,58 @@ export interface ProductQuery {
   stock: StockFilter;
   page: number;
   size: number;
+}
+
+export interface Restock {
+  id: number;
+  productId: number;
+  productName: string;
+  supplierId: number;
+  supplierName: string;
+  qty: number;
+  unitCost: number | null;
+  userName: string;
+  createdAt: string;
+}
+
+export interface RestockInput {
+  productId: number;
+  supplierId: number;
+  qty: number;
+  unitCost: number | null;
+}
+
+/** from / to : 'YYYY-MM-DD', bornes incluses (jours du store). */
+export interface RestockQuery {
+  supplierId: number | null;
+  from: string;
+  to: string;
+  page: number;
+  size: number;
+}
+
+export type DiscountTarget = 'PRODUCT' | 'CATEGORY';
+export type DiscountStatus = 'ACTIVE' | 'UPCOMING' | 'PAST';
+
+export interface Discount {
+  id: number;
+  label: string;
+  percent: number;
+  targetType: DiscountTarget;
+  targetId: number;
+  targetName: string | null;
+  startsAt: string;
+  endsAt: string;
+  status: DiscountStatus;
+}
+
+export interface DiscountInput {
+  label: string;
+  percent: number;
+  targetType: DiscountTarget;
+  targetId: number;
+  startsAt: string;
+  endsAt: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -87,5 +142,37 @@ export class CatalogApi {
 
   deleteProduct(id: number) {
     return this.http.delete<void>(`/api/catalog/products/${id}`);
+  }
+
+  restocks(query: RestockQuery) {
+    const params: Record<string, string | number> = { page: query.page, size: query.size };
+    if (query.supplierId !== null) params['supplierId'] = query.supplierId;
+    if (query.from) params['from'] = query.from;
+    if (query.to) params['to'] = query.to;
+    return this.http.get<Page<Restock>>('/api/catalog/restocks', { params });
+  }
+
+  restock(input: RestockInput) {
+    return this.http.post<Restock>('/api/catalog/restocks', input);
+  }
+
+  discounts(status: DiscountStatus) {
+    return this.http.get<Discount[]>('/api/catalog/discounts', { params: { status } });
+  }
+
+  createDiscount(input: DiscountInput) {
+    return this.http.post<Discount>('/api/catalog/discounts', input);
+  }
+
+  updateDiscount(id: number, input: DiscountInput) {
+    return this.http.put<Discount>(`/api/catalog/discounts/${id}`, input);
+  }
+
+  deleteDiscount(id: number) {
+    return this.http.delete<void>(`/api/catalog/discounts/${id}`);
+  }
+
+  endDiscount(id: number) {
+    return this.http.post<Discount>(`/api/catalog/discounts/${id}/end`, {});
   }
 }

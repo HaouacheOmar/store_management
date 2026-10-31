@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink } from '@angular/router';
 import { apiMessage } from '../../core/api-error';
 import { Supplier, SupplierApi } from '../../core/api/supplier.api';
 import { AuthService } from '../../core/auth/auth.service';
@@ -13,7 +14,7 @@ import { SupplierDialog } from './supplier-dialog';
 
 @Component({
   selector: 'app-suppliers',
-  imports: [MatTableModule, MatButtonModule, MatIconModule],
+  imports: [RouterLink, MatTableModule, MatButtonModule, MatIconModule],
   template: `
     <header class="page-header">
       <h1>Fournisseurs</h1>
@@ -26,7 +27,10 @@ import { SupplierDialog } from './supplier-dialog';
       <table mat-table [dataSource]="rows()">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Nom</th>
-          <td mat-cell *matCellDef="let s">{{ s.name }}</td>
+          <td mat-cell *matCellDef="let s">
+            {{ s.name }}
+            <div><a class="muted" routerLink="/restocks" [queryParams]="{ supplierId: s.id }">Historique des restockages</a></div>
+          </td>
         </ng-container>
         <ng-container matColumnDef="contact">
           <th mat-header-cell *matHeaderCellDef>Contact</th>

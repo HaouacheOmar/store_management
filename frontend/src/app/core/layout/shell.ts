@@ -69,6 +69,8 @@ export class Shell {
     { path: '/dashboard', icon: 'dashboard', label: 'Tableau de bord' },
     { path: '/products', icon: 'inventory_2', label: 'Produits' },
     { path: '/categories', icon: 'category', label: 'Catégories' },
+    { path: '/restocks', icon: 'move_to_inbox', label: 'Restockages' },
+    { path: '/discounts', icon: 'sell', label: 'Remises' },
     { path: '/suppliers', icon: 'local_shipping', label: 'Fournisseurs' },
   ];
   protected readonly auth = inject(AuthService);

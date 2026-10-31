@@ -12,6 +12,12 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      properties:
+        # broker absent : l'OutboxRelay échoue vite et réessaie au cycle suivant (au lieu de bloquer 60 s)
+        max.block.ms: 10000
   data:
     web:
       pageable:
