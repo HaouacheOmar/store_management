@@ -5,35 +5,42 @@ Ce guide met Store Manager en ligne :
 | Brique | Hébergeur | Fichier du dépôt |
 |---|---|---|
 | Front Angular + relais `/api` et `/ws` | **Cloudflare Pages** (+ Pages Functions) | `frontend/functions/` |
-| Gateway (publique) + 5 services (privés) | **Render** (Blueprint) | `render.yaml` |
+| Gateway + 5 services | **Render**, offre gratuite (Blueprint) | `render.yaml` |
 | 5 bases PostgreSQL | **Neon** | `infra/neon/setup.sql` |
 | Kafka | Fournisseur managé (Confluent Cloud, Redpanda Serverless, Aiven…) | variables d'environnement |
 
 ```mermaid
 flowchart LR
     B[Navigateur] --> P["Cloudflare Pages<br/>front + Functions /api /ws"]
-    P -->|HTTPS / WSS| G["Render : store-gateway<br/>(web, publique)"]
-    G --> S["Render : 5 services privés<br/>auth · catalog · supplier · sales · reporting"]
+    P -->|HTTPS / WSS| G["Render : store-gateway<br/>(web gratuit)"]
+    G -->|HTTPS| S["Render : 5 services web gratuits<br/>auth · catalog · supplier · sales · reporting"]
     S --> N[("Neon<br/>5 bases")]
     S <--> K[(Kafka managé)]
 ```
 
 **Ce qui change par rapport à Docker Compose, sans toucher au code métier :**
 
-- **Pas d'Eureka.** Le profil Spring `render` donne aux services des adresses fixes sur le réseau privé de Render (`application-render.yml`).
+- **Pas d'Eureka.** Le profil Spring `render` donne aux services des adresses fixes (`application-render.yml`). Les services gratuits de Render ne reçoivent pas le trafic du réseau privé : ils s'appellent donc par leur **URL publique** (groupe de variables `store-urls`). Leurs routes restent protégées : JWT partout, et secret de service en plus sur `/internal/**`.
 - **Pas de nginx.** Deux Pages Functions relaient `/api` et `/ws` vers la gateway. Le front reste sur une seule origine : pas de CORS, pas d'URL d'API dans le code Angular.
 - **Port imposé par Render** via `PORT`. Pools de connexions réduits (3 par service).
 - **Topics Kafka créés au démarrage** par les services, puisque la création automatique est souvent désactivée chez les fournisseurs managés.
 
 Docker Compose fonctionne toujours exactement comme avant.
 
-> **Coût indicatif, à vérifier sur les grilles tarifaires :**
-> - Render : 6 instances « Starter » (environ 7 $ chacune). Les services privés ne sont pas disponibles en gratuit.
-> - Neon : la base reste toujours active à cause du relais de l'outbox, donc l'offre gratuite s'épuise en une semaine environ. Prévoyez l'offre d'entrée payante.
-> - Kafka : une offre gratuite ou des crédits suffisent pour une démo.
-> - Cloudflare Pages : gratuit.
+> **Tout est gratuit, sans carte bancaire**, avec les limites suivantes (à vérifier sur les grilles tarifaires) :
+> - **Render, offre gratuite :**
+>   - un service sans trafic s'endort après 15 min et met 1 à 3 min à se réveiller ;
+>   - 750 h d'instance par mois, partagées par les 6 services, soit environ **125 h d'utilisation réelle de l'application par mois** ;
+>   - minutes de build limitées : chaque déploiement reconstruit les 6 images.
+> - **Ce que le code fait pour ces limites (profil `render`) :**
+>   - la gateway réveille tous les services en même temps, et les garde éveillés tant que quelqu'un utilise l'application (`WakeUpPinger`) ;
+>   - les délais d'attente montent à 3 min pour patienter pendant un réveil ;
+>   - la JVM est réglée pour démarrer vite : mesuré en local avec une limite de 512 Mo, chaque service reste sous 300 Mo.
+> - **Neon, offre gratuite :** la base s'endort quand les services dorment, ce qui ménage les heures de calcul.
+> - **Kafka :** prendre une offre gratuite sans carte (voir §2).
+> - **Cloudflare Pages :** gratuit.
 >
-> Total : environ **60 $ / mois** pour un service qui reste allumé.
+> **À la première visite d'une session, comptez 2 à 4 minutes** que tout se réveille. Pour une démo c'est acceptable ; pour un vrai magasin, passez sur des plans payants (types `pserv` et `plan: starter` dans `render.yaml`).
 
 ---
 
@@ -62,7 +69,7 @@ jdbc:postgresql://ep-xxxx.eu-central-1.aws.neon.tech/catalog_db?sslmode=require
 
 ## 2. Kafka managé
 
-Prenez un fournisseur Kafka compatible SASL_SSL et notez trois valeurs :
+Prenez un fournisseur Kafka **avec une offre gratuite sans carte**, compatible SASL_SSL (Aiven propose une offre Kafka gratuite, à vérifier au moment de l'inscription). Notez trois valeurs :
 
 | Variable Render | Exemple Confluent Cloud | Exemple Redpanda Serverless |
 |---|---|---|
@@ -80,10 +87,11 @@ Prenez un fournisseur Kafka compatible SASL_SSL et notez trois valeurs :
 ## 3. Render : gateway et services
 
 1. Poussez le dépôt sur GitHub. Le fichier `render.yaml` doit être à la racine de `main`.
-2. Sur Render : **New → Blueprint**, puis choisissez le dépôt. Render lit `render.yaml` et propose 6 services et un groupe de variables `store-common`.
+2. Sur Render : **New → Blueprint**, puis choisissez le dépôt. Render lit `render.yaml` et propose 6 services web **gratuits**, et deux groupes de variables : `store-common` et `store-urls`.
 3. Renseignez les valeurs demandées (marquées `sync: false`) :
    - **Groupe `store-common`** : les 3 variables Kafka du §2. `JWT_SECRET` et `INTERNAL_SECRET` sont générés automatiquement et partagés par tous les services.
-   - **Chacun des 5 services privés** : `SPRING_DATASOURCE_URL` (l'URL JDBC du §1, avec sa propre base) et `SPRING_DATASOURCE_PASSWORD` (le mot de passe choisi pour son rôle).
+   - **Chacun des 5 services métier** : `SPRING_DATASOURCE_URL` (l'URL JDBC du §1, avec sa propre base) et `SPRING_DATASOURCE_PASSWORD` (le mot de passe choisi pour son rôle).
+   - **Après la création**, vérifiez que l'URL publique de chaque service correspond au groupe `store-urls` (`https://store-auth.onrender.com`…). Si Render a ajouté un suffixe parce que le nom était déjà pris, corrigez la valeur dans le groupe ; les services redémarrent tout seuls.
 4. Lancez la création. Chaque service se construit avec `backend/Dockerfile`. Render transmet la variable `MODULE` comme argument de build, ce qui sélectionne le service à compiler. Le premier build prend plusieurs minutes par service.
 5. Vérifiez que `https://store-gateway.onrender.com/actuator/health` répond `{"status":"UP"}` (le nom exact est visible dans le tableau de bord). **Notez l'URL de la gateway** pour le §4.
 
@@ -122,7 +130,7 @@ Prenez un fournisseur Kafka compatible SASL_SSL et notez trois valeurs :
 - [ ] Le tableau de bord se met à jour : la chaîne Kafka fonctionne (outbox, topics, reporting).
 - [ ] Une vente qui fait passer un produit sous son seuil allume la cloche sans recharger la page : le WebSocket passe par la Function.
 
-> Cette chaîne a été vérifiée en local, avec `wrangler pages dev` pour les Functions et la stack Docker en profil `render`, sans Eureka. Ce n'est pas encore le cas sur un vrai compte Render, Neon ou Cloudflare.
+> Cette chaîne a été vérifiée en local : `wrangler pages dev` pour les Functions, et la stack Docker en profil `render`, sans Eureka, avec des URL entre services et une limite de 512 Mo par conteneur. Ce n'est pas encore le cas sur un vrai compte Render, Neon ou Cloudflare.
 
 ---
 
@@ -130,8 +138,9 @@ Prenez un fournisseur Kafka compatible SASL_SSL et notez trois valeurs :
 
 | Symptôme | Cause probable |
 |---|---|
-| `503` sur `/api/...` | Le service privé visé n'est pas encore démarré : voir ses logs dans Render |
-| Service privé qui redémarre en boucle, `OutOfMemoryError` | Instance trop petite : augmentez le plan, ou réduisez `-XX:MaxRAMPercentage` dans `JAVA_TOOL_OPTIONS` |
+| Première requête très lente, ou `504` | Services gratuits en train de se réveiller (1 à 3 min) : réessayez. Le WakeUpPinger réveille les autres dès que la gateway est debout |
+| `503` sur `/api/...` | Le service visé n'a pas démarré : voir ses logs dans Render, et vérifier son URL dans `store-urls` |
+| Service qui redémarre en boucle, `OutOfMemoryError` | 512 Mo dépassés : réduisez `-XX:MaxRAMPercentage` dans `JAVA_TOOL_OPTIONS`, ou passez sur un plan payant |
 | `FlywayException` ou `permission denied for schema public` | URL de la mauvaise base, ou rôle qui n'est pas propriétaire de la base (relancer `infra/neon/setup.sql`) |
 | Erreur Flyway de verrou, `prepared statement … does not exist` | URL Neon en `-pooler` : utilisez l'hôte direct |
 | `SaslAuthenticationException` ou `TopicAuthorizationException` | Identifiants Kafka erronés, ou droit de création de topics manquant (créez les 4 topics à la main) |

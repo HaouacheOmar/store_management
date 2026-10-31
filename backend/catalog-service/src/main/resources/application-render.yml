@@ -1,4 +1,4 @@
-# Profil « render » : pas d'Eureka ; catalog appelle supplier-service à son adresse privée (render.yaml).
+# Profil « render » : pas d'Eureka ; catalog appelle supplier-service par son URL (SUPPLIER_URL, cf. render.yaml).
 eureka:
   client:
     enabled: false
@@ -10,4 +10,11 @@ spring:
         simple:
           instances:
             supplier-service:
-              - uri: http://${SUPPLIER_HOSTPORT}
+              - uri: ${SUPPLIER_URL}
+    openfeign:
+      client:
+        config:
+          default:
+            # service gratuit endormi : 1 à 3 min de réveil
+            connect-timeout: 10000
+            read-timeout: 180000

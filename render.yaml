@@ -1,6 +1,11 @@
-# Render Blueprint : gateway publique + 5 services privés (réseau privé Render), sans Eureka.
+# Render Blueprint — offre GRATUITE (sans carte) : 6 services web gratuits, sans Eureka.
 # Base de données : Neon (une base par service). Kafka : fournisseur externe (SASL/SSL).
 # Voir DEPLOYMENT.md. Les valeurs « sync: false » sont demandées dans le tableau de bord à la création.
+#
+# Contraintes de l'offre gratuite (cf. DEPLOYMENT.md) :
+#  - pas de réseau privé entrant : les services s'appellent par URL publique (groupe store-urls) ;
+#  - mise en veille après 15 min sans trafic, réveil en 1 à 3 min (WakeUpPinger dans la gateway) ;
+#  - 750 h d'instance par mois, partagées par les 6 services.
 
 envVarGroups:
   # partagé par tous les services backend
@@ -14,15 +19,15 @@ envVarGroups:
         value: render
       - key: PORT
         value: "10000"
-      # mémoire : laisser de la place hors tas, GC adapté aux petites instances
+      # 512 Mo / CPU partagé : démarrage rapide (JIT C1 seul), petit GC, pile réduite
       - key: JAVA_TOOL_OPTIONS
-        value: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+        value: -XX:MaxRAMPercentage=60 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k
       # peu de connexions par service (Neon), aucune connexion gardée au repos
       - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
         value: "3"
       - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
         value: "0"
-      # Kafka managé (cf. DEPLOYMENT.md §3)
+      # Kafka managé (cf. DEPLOYMENT.md §2)
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         sync: false
       - key: SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL
@@ -32,12 +37,27 @@ envVarGroups:
       - key: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
         sync: false
 
+  # URL publiques des services (offre gratuite : pas de réseau privé entrant).
+  # Si Render ajoute un suffixe au nom (nom déjà pris), corrigez ces valeurs après la création.
+  - name: store-urls
+    envVars:
+      - key: AUTH_URL
+        value: https://store-auth.onrender.com
+      - key: CATALOG_URL
+        value: https://store-catalog.onrender.com
+      - key: SUPPLIER_URL
+        value: https://store-supplier.onrender.com
+      - key: SALES_URL
+        value: https://store-sales.onrender.com
+      - key: REPORTING_URL
+        value: https://store-reporting.onrender.com
+
 services:
   - type: web
     name: store-gateway
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /actuator/health
@@ -45,26 +65,18 @@ services:
       paths: [ backend/** ]
     envVars:
       - fromGroup: store-common
+      - fromGroup: store-urls
       - key: MODULE                # argument de build du Dockerfile
         value: api-gateway
-      - key: AUTH_HOSTPORT
-        fromService: { type: pserv, name: store-auth, property: hostport }
-      - key: CATALOG_HOSTPORT
-        fromService: { type: pserv, name: store-catalog, property: hostport }
-      - key: SUPPLIER_HOSTPORT
-        fromService: { type: pserv, name: store-supplier, property: hostport }
-      - key: SALES_HOSTPORT
-        fromService: { type: pserv, name: store-sales, property: hostport }
-      - key: REPORTING_HOSTPORT
-        fromService: { type: pserv, name: store-reporting, property: hostport }
 
-  - type: pserv
+  - type: web
     name: store-auth
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
     buildFilter:
       paths: [ backend/** ]
     envVars:
@@ -78,17 +90,19 @@ services:
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
 
-  - type: pserv
+  - type: web
     name: store-catalog
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
     buildFilter:
       paths: [ backend/** ]
     envVars:
       - fromGroup: store-common
+      - fromGroup: store-urls
       - key: MODULE
         value: catalog-service
       - key: SPRING_DATASOURCE_URL
@@ -97,16 +111,15 @@ services:
         value: catalog_user
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
-      - key: SUPPLIER_HOSTPORT
-        fromService: { type: pserv, name: store-supplier, property: hostport }
 
-  - type: pserv
+  - type: web
     name: store-supplier
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
     buildFilter:
       paths: [ backend/** ]
     envVars:
@@ -120,17 +133,19 @@ services:
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
 
-  - type: pserv
+  - type: web
     name: store-sales
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
     buildFilter:
       paths: [ backend/** ]
     envVars:
       - fromGroup: store-common
+      - fromGroup: store-urls
       - key: MODULE
         value: sales-service
       - key: SPRING_DATASOURCE_URL
@@ -139,16 +154,15 @@ services:
         value: sales_user
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
-      - key: CATALOG_HOSTPORT
-        fromService: { type: pserv, name: store-catalog, property: hostport }
 
-  - type: pserv
+  - type: web
     name: store-reporting
     runtime: docker
+    plan: free
     region: frankfurt
-    plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
     buildFilter:
       paths: [ backend/** ]
     envVars:

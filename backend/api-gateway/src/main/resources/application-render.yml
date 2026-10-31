@@ -1,5 +1,6 @@
-# Profil « render » (SPRING_PROFILES_ACTIVE=render) : pas d'Eureka, adresses fixes du réseau privé Render.
-# Les *_HOSTPORT viennent de render.yaml (fromService … property: hostport), ex. store-auth:10000.
+# Profil « render » (SPRING_PROFILES_ACTIVE=render) : pas d'Eureka, adresses fixes.
+# Offre gratuite Render : les services ne reçoivent pas le trafic privé, on les appelle par leur URL publique
+# (*_URL, ex. https://store-auth.onrender.com). Leurs routes restent protégées (JWT, secret de service).
 eureka:
   client:
     enabled: false
@@ -11,12 +12,19 @@ spring:
         simple:
           instances:
             auth-service:
-              - uri: http://${AUTH_HOSTPORT}
+              - uri: ${AUTH_URL}
             catalog-service:
-              - uri: http://${CATALOG_HOSTPORT}
+              - uri: ${CATALOG_URL}
             supplier-service:
-              - uri: http://${SUPPLIER_HOSTPORT}
+              - uri: ${SUPPLIER_URL}
             sales-service:
-              - uri: http://${SALES_HOSTPORT}
+              - uri: ${SALES_URL}
             reporting-service:
-              - uri: http://${REPORTING_HOSTPORT}
+              - uri: ${REPORTING_URL}
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            # un service gratuit endormi met 1 à 3 min à se réveiller : on l'attend au lieu de répondre 504
+            connect-timeout: 10000
+            response-timeout: 180s
