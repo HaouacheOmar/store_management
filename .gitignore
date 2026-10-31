@@ -7,3 +7,5 @@ dist/
 *.iml
 .vscode/
 .playwright-mcp/
+# notes locales (comptes de test…) : jamais versionnées
+*.local.md

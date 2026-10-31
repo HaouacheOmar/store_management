@@ -1,0 +1,13 @@
+# Profil « render » : pas d'Eureka ; catalog appelle supplier-service à son adresse privée (render.yaml).
+eureka:
+  client:
+    enabled: false
+
+spring:
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            supplier-service:
+              - uri: http://${SUPPLIER_HOSTPORT}

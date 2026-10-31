@@ -1,0 +1,4 @@
+# Profil « render » : pas d'Eureka (adresses fixes, cf. render.yaml).
+eureka:
+  client:
+    enabled: false

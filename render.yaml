@@ -1,0 +1,163 @@
+# Render Blueprint : gateway publique + 5 services privés (réseau privé Render), sans Eureka.
+# Base de données : Neon (une base par service). Kafka : fournisseur externe (SASL/SSL).
+# Voir DEPLOYMENT.md. Les valeurs « sync: false » sont demandées dans le tableau de bord à la création.
+
+envVarGroups:
+  # partagé par tous les services backend
+  - name: store-common
+    envVars:
+      - key: JWT_SECRET            # identique partout : généré une fois par Render
+        generateValue: true
+      - key: INTERNAL_SECRET       # secret service → service des routes /internal/**
+        generateValue: true
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: PORT
+        value: "10000"
+      # mémoire : laisser de la place hors tas, GC adapté aux petites instances
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      # peu de connexions par service (Neon), aucune connexion gardée au repos
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "3"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "0"
+      # Kafka managé (cf. DEPLOYMENT.md §3)
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL
+        value: SASL_SSL
+      - key: SPRING_KAFKA_PROPERTIES_SASL_MECHANISM
+        sync: false
+      - key: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
+        sync: false
+
+services:
+  - type: web
+    name: store-gateway
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE                # argument de build du Dockerfile
+        value: api-gateway
+      - key: AUTH_HOSTPORT
+        fromService: { type: pserv, name: store-auth, property: hostport }
+      - key: CATALOG_HOSTPORT
+        fromService: { type: pserv, name: store-catalog, property: hostport }
+      - key: SUPPLIER_HOSTPORT
+        fromService: { type: pserv, name: store-supplier, property: hostport }
+      - key: SALES_HOSTPORT
+        fromService: { type: pserv, name: store-sales, property: hostport }
+      - key: REPORTING_HOSTPORT
+        fromService: { type: pserv, name: store-reporting, property: hostport }
+
+  - type: pserv
+    name: store-auth
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE
+        value: auth-service
+      - key: SPRING_DATASOURCE_URL       # jdbc:postgresql://<hôte Neon>/auth_db?sslmode=require
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: auth_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: store-catalog
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE
+        value: catalog-service
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: catalog_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SUPPLIER_HOSTPORT
+        fromService: { type: pserv, name: store-supplier, property: hostport }
+
+  - type: pserv
+    name: store-supplier
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE
+        value: supplier-service
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: supplier_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: store-sales
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE
+        value: sales-service
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: sales_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: CATALOG_HOSTPORT
+        fromService: { type: pserv, name: store-catalog, property: hostport }
+
+  - type: pserv
+    name: store-reporting
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: [ backend/** ]
+    envVars:
+      - fromGroup: store-common
+      - key: MODULE
+        value: reporting-service
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: reporting_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false

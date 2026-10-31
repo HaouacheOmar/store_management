@@ -1,0 +1,22 @@
+# Profil « render » (SPRING_PROFILES_ACTIVE=render) : pas d'Eureka, adresses fixes du réseau privé Render.
+# Les *_HOSTPORT viennent de render.yaml (fromService … property: hostport), ex. store-auth:10000.
+eureka:
+  client:
+    enabled: false
+
+spring:
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            auth-service:
+              - uri: http://${AUTH_HOSTPORT}
+            catalog-service:
+              - uri: http://${CATALOG_HOSTPORT}
+            supplier-service:
+              - uri: http://${SUPPLIER_HOSTPORT}
+            sales-service:
+              - uri: http://${SALES_HOSTPORT}
+            reporting-service:
+              - uri: http://${REPORTING_HOSTPORT}

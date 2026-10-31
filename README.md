@@ -225,6 +225,12 @@ docker compose up -d --build --no-deps catalog
 
 ---
 
+### Mise en ligne
+
+Neon, Render et Cloudflare Pages : voir **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+---
+
 ## Développement local
 
 Démarrer l'infrastructure dans Docker et les services depuis l'IDE ou le terminal :
@@ -292,6 +298,7 @@ cd frontend && npx ng build      # build de production du front
 | [PRD.md](PRD.md) | Besoin, rôles et permissions, règles métier, critères d'acceptation |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | Architecture, flux (encaissement, annulation, restockage, notifications), API REST, conventions |
 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Tables, contraintes et index de chaque base, requêtes clés |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Mise en ligne : Neon (bases), Render (services, `render.yaml`), Cloudflare Pages (front et relais `/api`, `/ws`) |
 
 ---
 
