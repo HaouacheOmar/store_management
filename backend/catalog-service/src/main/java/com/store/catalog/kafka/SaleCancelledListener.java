@@ -6,7 +6,7 @@ import com.store.catalog.service.StockService;
 import com.store.common.contract.StockContract.Line;
 import com.store.common.events.Events;
 import com.store.common.events.Events.SaleEvent;
-import com.store.common.outbox.ProcessedEvents;
+import com.store.common.idempotence.ProcessedEvents;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;

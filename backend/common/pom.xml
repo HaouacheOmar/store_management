@@ -27,10 +27,10 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
-        <!-- outbox : seuls catalog et sales les ajoutent à leur propre pom -->
+        <!-- outbox / idempotence (entités JPA) : seuls les services qui les utilisent les ajoutent à leur pom -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>

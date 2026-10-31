@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.store.common.events.Events;
 import com.store.common.events.Events.SaleEvent;
 import com.store.common.events.Events.SaleLine;
-import com.store.common.outbox.ProcessedEvents;
+import com.store.common.idempotence.ProcessedEvents;
 import com.store.reporting.repository.DailyCashierSalesRepository;
 import com.store.reporting.repository.DailyProductSalesRepository;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

@@ -82,7 +82,7 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway, et chaque se
 | `stock.low` | catalog | reporting | `storeId, productId, productName, stockQty, alertThreshold, type (LOW \| OUT)` |
 | `stock.restocked` | catalog | reporting | `storeId, productId, stockQty, alertThreshold` |
 
-- **Transactional outbox** (aucun événement perdu) : le service n'envoie jamais directement à Kafka. `OutboxPublisher.publish(topic, key, event)` insère l'événement dans la table `outbox_event` **dans la même transaction** que la donnée métier. `OutboxRelay` (planifié toutes les 500 ms) lit les lignes non envoyées (`FOR UPDATE SKIP LOCKED`, donc sans conflit si plusieurs instances tournent), les envoie à Kafka, puis pose `sent_at`. Les lignes envoyées sont purgées après 7 jours. Code : `backend/common/.../outbox/`, activé par `@Import(OutboxConfig.class)` dans catalog et sales.
+- **Transactional outbox** (aucun événement perdu) : le service n'envoie jamais directement à Kafka. `OutboxPublisher.publish(topic, key, event)` insère l'événement dans la table `outbox_event` **dans la même transaction** que la donnée métier. `OutboxRelay` (planifié toutes les 500 ms) lit les lignes non envoyées (`FOR UPDATE SKIP LOCKED`, donc sans conflit si plusieurs instances tournent), les envoie à Kafka, puis pose `sent_at`. Les lignes envoyées sont purgées après 7 jours. Code : `backend/common/.../outbox/`, en JPA (`EntityManager`, verrou pessimiste `SKIP LOCKED`), activé par `@Import(OutboxConfig.class)` dans catalog et sales, qui ajoutent `OutboxEvent` à leur `@EntityScan`. **Toute la persistance du projet passe par JPA/Hibernate** : les seules requêtes natives sont les cumuls atomiques du reporting (`INSERT … ON CONFLICT`), déclarées dans des repositories Spring Data JPA.
 - Livraison *at-least-once* : l'id de l'événement est envoyé dans le header Kafka `eventId`. Les consommateurs sont **idempotents** grâce à la table `processed_event(event_id)` (catalog, reporting), via `ProcessedEvents` du module `common`.
 
 ### 2.3 Flux critiques
@@ -129,7 +129,8 @@ store_management/
 │   ├── common/                      # seul module partagé
 │   │   └── src/main/java/com/store/common/
 │   │       ├── events/              # Events : topics + records Kafka (SaleEvent, StockLowEvent…)
-│   │       ├── outbox/              # OutboxPublisher, OutboxRelay, OutboxConfig
+│   │       ├── outbox/              # OutboxEvent (entité JPA), OutboxPublisher, OutboxRelay, OutboxConfig
+│   │       ├── idempotence/         # ProcessedEvent (entité JPA), ProcessedEvents
 │   │       ├── security/            # JwtSecurityConfig, CurrentUser (storeId, userId, tz…)
 │   │       └── web/                 # ApiError, ApiException, GlobalExceptionHandler
 │   ├── Dockerfile                   # unique, ARG MODULE=<service>

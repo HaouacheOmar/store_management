@@ -1,63 +1,69 @@
 package com.store.common.outbox;
 
 import com.store.common.events.Events;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.hibernate.LockOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/** Envoie à Kafka les lignes non envoyées de outbox_event (livraison at-least-once). */
+/** Envoie à Kafka les événements non envoyés de outbox_event (livraison at-least-once). */
 public class OutboxRelay {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxRelay.class);
 
-    record Row(UUID id, String topic, String key, String payload) {
-    }
-
-    private final JdbcTemplate jdbc;
+    private final EntityManager em;
     private final KafkaTemplate<String, String> kafka;
 
-    public OutboxRelay(JdbcTemplate jdbc, KafkaTemplate<String, String> kafka) {
-        this.jdbc = jdbc;
+    public OutboxRelay(EntityManager em, KafkaTemplate<String, String> kafka) {
+        this.em = em;
         this.kafka = kafka;
     }
 
-    /** SKIP LOCKED : plusieurs instances du service peuvent tourner sans envoyer deux fois la même ligne. */
+    /**
+     * Verrou pessimiste SKIP LOCKED : plusieurs instances du service peuvent tourner sans envoyer
+     * deux fois le même événement. sent_at est écrit au commit (dirty checking).
+     */
     @Scheduled(fixedDelayString = "${app.outbox.poll-ms:500}")
     @Transactional
     public void relay() {
-        List<Row> rows = jdbc.query("""
-                        SELECT id, topic, msg_key, payload FROM outbox_event
-                        WHERE sent_at IS NULL ORDER BY created_at LIMIT 100
-                        FOR UPDATE SKIP LOCKED""",
-                (rs, i) -> new Row(rs.getObject("id", UUID.class), rs.getString("topic"),
-                        rs.getString("msg_key"), rs.getString("payload")));
+        List<OutboxEvent> pending = em.createQuery(
+                        "select e from OutboxEvent e where e.sentAt is null order by e.createdAt", OutboxEvent.class)
+                .setMaxResults(100)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .setHint("jakarta.persistence.lock.timeout", LockOptions.SKIP_LOCKED)
+                .getResultList();
 
-        for (Row row : rows) {
-            var record = new ProducerRecord<>(row.topic(), row.key(), row.payload());
-            record.headers().add(Events.EVENT_ID_HEADER, row.id().toString().getBytes(StandardCharsets.UTF_8));
+        for (OutboxEvent event : pending) {
+            var record = new ProducerRecord<>(event.getTopic(), event.getMsgKey(), event.getPayload());
+            record.headers().add(Events.EVENT_ID_HEADER, event.getId().toString().getBytes(StandardCharsets.UTF_8));
             try {
                 kafka.send(record).get(10, TimeUnit.SECONDS);
             } catch (Exception e) {
-                // on s'arrête pour préserver l'ordre ; les lignes déjà envoyées restent marquées
-                log.warn("Outbox : envoi de {} échoué, nouvelle tentative au prochain cycle", row.id(), e);
+                // on s'arrête pour préserver l'ordre ; les événements déjà envoyés restent marqués
+                log.warn("Outbox : envoi de {} échoué, nouvelle tentative au prochain cycle", event.getId(), e);
                 if (e instanceof InterruptedException) Thread.currentThread().interrupt();
                 return;
             }
-            jdbc.update("UPDATE outbox_event SET sent_at = now() WHERE id = ?", row.id());
+            event.markSent(Instant.now());
         }
     }
 
     @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
     public void purgeSent() {
-        jdbc.update("DELETE FROM outbox_event WHERE sent_at < now() - interval '7 days'");
+        em.createQuery("delete from OutboxEvent e where e.sentAt < :before")
+                .setParameter("before", Instant.now().minus(Duration.ofDays(7)))
+                .executeUpdate();
     }
 }
