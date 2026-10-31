@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Seules /api/** et /ws/** sont exposées : /internal/** reste privé entre services.
+          # StripPrefix=1 retire /api ; chaque service sert ses routes sous son préfixe (/auth/**, /catalog/**…).
+          routes:
+            - id: auth
+              uri: lb://auth-service
+              predicates: [ Path=/api/auth/** ]
+              filters: [ StripPrefix=1 ]
+            - id: catalog
+              uri: lb://catalog-service
+              predicates: [ Path=/api/catalog/** ]
+              filters: [ StripPrefix=1 ]
+            - id: suppliers
+              uri: lb://supplier-service
+              predicates: [ Path=/api/suppliers/** ]
+              filters: [ StripPrefix=1 ]
+            - id: sales
+              uri: lb://sales-service
+              predicates: [ Path=/api/sales/** ]
+              filters: [ StripPrefix=1 ]
+            - id: reporting
+              uri: lb://reporting-service
+              predicates: [ Path=/api/reporting/** ]
+              filters: [ StripPrefix=1 ]
+            - id: reporting-ws
+              uri: lb:ws://reporting-service
+              predicates: [ Path=/ws/** ]
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}

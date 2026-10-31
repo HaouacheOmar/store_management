@@ -1,0 +1,9 @@
+target/
+node_modules/
+dist/
+.angular/
+.env
+.idea/
+*.iml
+.vscode/
+.playwright-mcp/
