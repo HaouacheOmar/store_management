@@ -23,6 +23,7 @@
         <module>auth-service</module>
         <module>catalog-service</module>
         <module>supplier-service</module>
+        <module>sales-service</module>
     </modules>
 
     <properties>

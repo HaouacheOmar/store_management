@@ -24,6 +24,18 @@ export const routes: Routes = [
       },
       // consultation ouverte à tout le store ; les écritures sont masquées sans permission et refusées par l'API
       {
+        path: 'pos',
+        loadComponent: () => import('./features/pos/pos').then((m) => m.Pos),
+      },
+      {
+        path: 'sales',
+        loadComponent: () => import('./features/sales/sales').then((m) => m.Sales),
+      },
+      {
+        path: 'sales/:id',
+        loadComponent: () => import('./features/sales/receipt').then((m) => m.Receipt),
+      },
+      {
         path: 'products',
         loadComponent: () => import('./features/products/products').then((m) => m.Products),
       },

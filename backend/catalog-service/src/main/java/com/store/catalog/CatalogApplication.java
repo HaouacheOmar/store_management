@@ -1,6 +1,7 @@
 package com.store.catalog;
 
 import com.store.common.outbox.OutboxConfig;
+import com.store.common.outbox.ProcessedEvents;
 import com.store.common.security.FeignJwtForwarding;
 import com.store.common.security.JwtSecurityConfig;
 import com.store.common.web.GlobalExceptionHandler;
@@ -14,7 +15,8 @@ import static org.springframework.data.web.config.EnableSpringDataWebSupport.Pag
 
 @SpringBootApplication
 @EnableFeignClients
-@Import({JwtSecurityConfig.class, GlobalExceptionHandler.class, OutboxConfig.class, FeignJwtForwarding.class})
+@Import({JwtSecurityConfig.class, GlobalExceptionHandler.class, OutboxConfig.class, ProcessedEvents.class,
+        FeignJwtForwarding.class})
 @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
 public class CatalogApplication {
 

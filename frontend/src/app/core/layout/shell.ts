@@ -67,6 +67,8 @@ import { ROLE_LABELS } from '../auth/labels';
 export class Shell {
   protected readonly nav = [
     { path: '/dashboard', icon: 'dashboard', label: 'Tableau de bord' },
+    { path: '/pos', icon: 'point_of_sale', label: 'Caisse' },
+    { path: '/sales', icon: 'receipt_long', label: 'Ventes' },
     { path: '/products', icon: 'inventory_2', label: 'Produits' },
     { path: '/categories', icon: 'category', label: 'Catégories' },
     { path: '/restocks', icon: 'move_to_inbox', label: 'Restockages' },

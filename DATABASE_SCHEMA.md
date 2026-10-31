@@ -383,3 +383,4 @@ DO UPDATE SET qty = d.qty + EXCLUDED.qty, revenue = d.revenue + EXCLUDED.revenue
 | Sale, SaleLine | sales | agrégés dans reporting |
 | Notification, NotificationRead, agrégats | reporting | — |
 | OutboxEvent | catalog, sales (chacun la sienne) | — |
+| ProcessedEvent (idempotence Kafka) | catalog (`sale.cancelled`), reporting | — |

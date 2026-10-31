@@ -81,12 +81,22 @@ services:
       postgres: { condition: service_healthy }
       discovery: { condition: service_started }
 
+  sales:
+    build: { context: ./backend, args: { MODULE: sales-service } }
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sales_db
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery: { condition: service_started }
+
   frontend:
     build: ./frontend
     ports: [ "${FRONTEND_PORT:-4200}:80" ]
     depends_on: [ gateway ]
 
-  # Lots suivants : sales, reporting (même modèle que auth).
+  # Lot suivant : reporting (même modèle que sales).
 
 volumes:
   pgdata:

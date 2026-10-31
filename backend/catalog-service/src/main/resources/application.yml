@@ -18,6 +18,9 @@ spring:
       properties:
         # broker absent : l'OutboxRelay échoue vite et réessaie au cycle suivant (au lieu de bloquer 60 s)
         max.block.ms: 10000
+    consumer:
+      group-id: catalog-service
+      auto-offset-reset: earliest
   data:
     web:
       pageable:

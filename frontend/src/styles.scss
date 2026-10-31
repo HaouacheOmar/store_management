@@ -118,3 +118,11 @@ html, body { height: 100%; }
   font: var(--mat-sys-label-small);
   font-weight: 600;
 }
+
+// Impression du ticket de caisse (80 mm) : tout le reste de la page est masqué
+@media print {
+  @page { size: 80mm auto; margin: 0; }
+  body * { visibility: hidden; }
+  .receipt, .receipt * { visibility: visible; }
+  .receipt { position: absolute; left: 0; top: 0; width: 80mm; border: none; margin: 0; }
+}

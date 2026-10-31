@@ -68,7 +68,7 @@ flowchart LR
 | Appelant → Appelé | Endpoint interne | Pourquoi synchrone |
 |---|---|---|
 | sales → catalog | `POST /internal/stock/decrement` | Refuser la vente si le stock est insuffisant ; obtenir le prix remisé faisant foi |
-| sales → catalog | `POST /internal/stock/increment` | Annulation d'une vente |
+| sales → catalog | `POST /internal/stock/increment` | Compensation uniquement : la vente n'a pas pu être enregistrée après la sortie de stock (ou espèces insuffisantes) |
 | catalog → supplier | `GET /suppliers/{id}` (route publique, JWT de l'utilisateur transmis) | Valider le fournisseur du store et récupérer son nom (snapshot) ; pas de route interne dédiée, la publique suffit |
 
 Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercepteur Feign propage le JWT de l'utilisateur.
@@ -78,12 +78,12 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercept
 | Topic | Producteur | Consommateur | Payload (clé = `storeId`) |
 |---|---|---|---|
 | `sale.completed` | sales | reporting | `saleId, storeId, cashierId, cashierName, saleDate (date locale), total, lines[{productId, productName, categoryId, categoryName, qty, unitPrice, discountPercent, lineTotal}]` |
-| `sale.cancelled` | sales | reporting | même payload que `sale.completed` (pour soustraire) |
+| `sale.cancelled` | sales | catalog (recrédit du stock), reporting | même payload que `sale.completed` (pour soustraire) |
 | `stock.low` | catalog | reporting | `storeId, productId, productName, stockQty, alertThreshold, type (LOW \| OUT)` |
 | `stock.restocked` | catalog | reporting | `storeId, productId, stockQty, alertThreshold` |
 
 - **Transactional outbox** (aucun événement perdu) : le service n'envoie jamais directement à Kafka. `OutboxPublisher.publish(topic, key, event)` insère l'événement dans la table `outbox_event` **dans la même transaction** que la donnée métier. `OutboxRelay` (planifié toutes les 500 ms) lit les lignes non envoyées (`FOR UPDATE SKIP LOCKED`, donc sans conflit si plusieurs instances tournent), les envoie à Kafka, puis pose `sent_at`. Les lignes envoyées sont purgées après 7 jours. Code : `backend/common/.../outbox/`, activé par `@Import(OutboxConfig.class)` dans catalog et sales.
-- Livraison *at-least-once* : l'id de l'événement est envoyé dans le header Kafka `eventId`. Les consommateurs sont **idempotents** grâce à la table `processed_event(event_id)` dans reporting.
+- Livraison *at-least-once* : l'id de l'événement est envoyé dans le header Kafka `eventId`. Les consommateurs sont **idempotents** grâce à la table `processed_event(event_id)` (catalog, reporting), via `ProcessedEvents` du module `common`.
 
 ### 2.3 Flux critiques
 
@@ -100,7 +100,7 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercept
 
 > Le contrôle `cashReceived ≥ total` peut aussi se faire avant le décrément, en recalculant le total via un `GET /internal/prices` ; v1 : compensation simple.
 
-**Annulation** : `POST /api/sales/sales/{id}/cancel` (`SALE_CANCEL`) → catalog `increment` → `status = CANCELLED` → `sale.cancelled`.
+**Annulation** : `POST /api/sales/sales/{id}/cancel` (`SALE_CANCEL`) → `UPDATE … status = CANCELLED WHERE status = COMPLETED` (atomique : une seule annulation réussit) + `sale.cancelled` dans l'outbox, même transaction → catalog consomme l'événement et recrédite le stock (idempotent). Aucun appel synchrone : une annulation ne peut ni recréditer deux fois, ni rester à moitié faite.
 
 **Restockage** : `POST /api/catalog/restocks` `{productId, supplierId, qty, unitCost?}` (`STOCK_RESTOCK`) → catalog → supplier (vérification et nom, appel fait hors transaction) → `UPDATE … stock_qty = stock_qty + qty` + ligne `restock` + `stock.restocked` dans l'outbox (même transaction) → reporting résout la notification ouverte si le stock > seuil.
 

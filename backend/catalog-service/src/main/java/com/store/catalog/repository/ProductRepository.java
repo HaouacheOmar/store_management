@@ -23,6 +23,11 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("update Product p set p.stockQty = p.stockQty + :qty, p.updatedAt = :now where p.id = :id and p.storeId = :storeId and p.deleted = false")
     int addStock(long id, long storeId, int qty, Instant now);
 
+    /** Décrément atomique : 0 ligne modifiée = stock insuffisant (ou produit absent), donc jamais de survente. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Product p set p.stockQty = p.stockQty - :qty, p.updatedAt = :now where p.id = :id and p.storeId = :storeId and p.deleted = false and p.stockQty >= :qty")
+    int removeStock(long id, long storeId, int qty, Instant now);
+
     @Query("select p.stockQty from Product p where p.id = :id")
     int stockOf(long id);
 
