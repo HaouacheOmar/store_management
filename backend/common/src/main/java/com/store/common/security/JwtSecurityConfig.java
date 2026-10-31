@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.SecretKey;
@@ -30,8 +31,10 @@ public class JwtSecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                            @Value("${app.security.public-paths:}") String[] publicPaths) throws Exception {
+                                            @Value("${app.security.public-paths:}") String[] publicPaths,
+                                            @Value("${app.security.internal-secret:}") String internalSecret) throws Exception {
         http.csrf(c -> c.disable())
+                .addFilterBefore(new InternalApiFilter(internalSecret), BearerTokenAuthenticationFilter.class)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> {
                     // /error : sinon un 400/500 sur une route publique est masqué en 401

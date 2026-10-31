@@ -2,6 +2,7 @@ package com.store.sales;
 
 import com.jayway.jsonpath.JsonPath;
 import com.store.common.contract.StockContract.PricedLine;
+import com.store.common.contract.StockContract.Reservation;
 import com.store.common.contract.StockContract.StockRequest;
 import com.store.common.events.Events;
 import com.store.common.security.TestTokens;
@@ -23,6 +24,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -53,7 +55,7 @@ class SalesFlowTest extends SharedContainers {
 
     @Test
     void encaissement_ticket_visibilite_etAnnulation() throws Exception {
-        when(catalog.decrement(any())).thenReturn(List.of(MILK, BREAD));
+        when(catalog.decrement(any())).thenReturn(new Reservation(UUID.randomUUID(), List.of(MILK, BREAD)));
 
         // 2 laits (dont une ligne en double dans le panier) + 1 pain = 2 × 80 + 15.50 = 175.50
         String created = sale(cashierA, "[{\"productId\":10,\"qty\":1},{\"productId\":11,\"qty\":1},{\"productId\":10,\"qty\":1}]", "200")
@@ -68,7 +70,7 @@ class SalesFlowTest extends SharedContainers {
                 new com.store.common.contract.StockContract.Line(10, 2),
                 new com.store.common.contract.StockContract.Line(11, 1))));
 
-        when(catalog.decrement(any())).thenReturn(List.of(BREAD));
+        when(catalog.decrement(any())).thenReturn(new Reservation(UUID.randomUUID(), List.of(BREAD)));
         sale(cashierB, "[{\"productId\":11,\"qty\":2}]", "31").andExpect(status().isCreated());
 
         // chaque caissier ne voit que ses ventes ; l'admin voit tout le store ; l'autre store rien
@@ -93,10 +95,11 @@ class SalesFlowTest extends SharedContainers {
 
     @Test
     void especesInsuffisantes_ouStockInsuffisant_rienNEstEnregistre() throws Exception {
-        when(catalog.decrement(any())).thenReturn(List.of(MILK));
+        UUID reservation = UUID.randomUUID();
+        when(catalog.decrement(any())).thenReturn(new Reservation(reservation, List.of(MILK)));
         sale(cashierA, "[{\"productId\":10,\"qty\":1}]", "50")
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INSUFFICIENT_CASH"));
-        verify(catalog).increment(any()); // compensation : le stock sorti est rendu
+        verify(catalog).release(reservation); // compensation : exactement cette sortie de stock est rendue
 
         // l'erreur métier du catalogue arrive telle quelle à la caisse
         byte[] body = """

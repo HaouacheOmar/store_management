@@ -67,11 +67,11 @@ flowchart LR
 
 | Appelant → Appelé | Endpoint interne | Pourquoi synchrone |
 |---|---|---|
-| sales → catalog | `POST /internal/stock/decrement` | Refuser la vente si le stock est insuffisant ; obtenir le prix remisé faisant foi |
-| sales → catalog | `POST /internal/stock/increment` | Compensation uniquement : la vente n'a pas pu être enregistrée après la sortie de stock (ou espèces insuffisantes) |
+| sales → catalog | `POST /internal/stock/decrement` | Refuser la vente si le stock est insuffisant ; obtenir le prix remisé faisant foi et un `reservationId` |
+| sales → catalog | `POST /internal/stock/reservations/{id}/release` | Compensation uniquement (vente non enregistrée, espèces insuffisantes) : rend exactement la sortie de stock de cette réservation, une seule fois, par son auteur, dans les 5 minutes |
 | catalog → supplier | `GET /suppliers/{id}` (route publique, JWT de l'utilisateur transmis) | Valider le fournisseur du store et récupérer son nom (snapshot) ; pas de route interne dédiée, la publique suffit |
 
-Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercepteur Feign propage le JWT de l'utilisateur.
+Les routes `/internal/**` ne sont **pas** exposées par la gateway, et chaque service les protège lui-même (cf. §3) : un intercepteur Feign (`FeignJwtForwarding`) propage le JWT de l'utilisateur **et** le secret de service `X-Internal-Token`.
 
 **Asynchrone (Kafka)**, pour les effets de bord qui ne doivent pas bloquer la caisse :
 
@@ -111,6 +111,7 @@ Les routes `/internal/**` ne sont **pas** exposées par la gateway. Un intercept
 - `auth-service` émet un JWT (HS256, durée 8 h) avec les claims : `sub` (userId), `storeId`, `storeName`, `tz` (fuseau du store), `name`, `role`, `permissions[]`.
 - **Chaque service** valide le JWT lui-même (`spring-boot-starter-oauth2-resource-server`, secret partagé via la variable d'env `JWT_SECRET`) : la sécurité ne repose pas sur la gateway seule.
 - `permissions[]` est converti en `GrantedAuthority` : `@PreAuthorize("hasAuthority('PRODUCT_WRITE')")`.
+- **Routes internes** : `InternalApiFilter` (module `common`) exige l'en-tête `X-Internal-Token` = `INTERNAL_SECRET` sur `/internal/**`, comparé en temps constant ; sans secret configuré, tout `/internal/**` est refusé. Un utilisateur qui joindrait directement un service avec son propre JWT (même avec la bonne permission) reçoit 403. Le JWT reste exigé en plus : le service appelé applique store et permissions du caissier.
 - **storeId toujours lu du token**, jamais du body ni de l'URL. Toutes les requêtes des repositories filtrent par `storeId` (méthodes `findByIdAndStoreId`…).
 - Les mots de passe sont hachés en BCrypt.
 - WebSocket : le JWT est passé dans le header STOMP `CONNECT`, et un `ChannelInterceptor` refuse un `SUBSCRIBE` sur un `storeId` différent de celui du token.

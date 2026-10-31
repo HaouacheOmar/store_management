@@ -2,6 +2,7 @@ package com.store.catalog;
 
 import com.jayway.jsonpath.JsonPath;
 import com.store.common.events.Events;
+import com.store.common.security.InternalApiFilter;
 import com.store.common.security.TestTokens;
 import com.store.common.testing.SharedContainers;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -33,7 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Flux de stock du lot 4 : ventes concurrentes, alerte stock bas, annulation via Kafka. */
-@SpringBootTest(properties = {"app.security.jwt-secret=" + TestTokens.SECRET, "eureka.client.enabled=false"})
+@SpringBootTest(properties = {"app.security.jwt-secret=" + TestTokens.SECRET,
+        "app.security.internal-secret=" + TestTokens.INTERNAL_SECRET, "eureka.client.enabled=false"})
 @AutoConfigureMockMvc
 class SaleStockTest extends SharedContainers {
 
@@ -42,6 +44,7 @@ class SaleStockTest extends SharedContainers {
 
     final String admin = TestTokens.token(1, 30, "ADMIN", "CATEGORY_WRITE", "PRODUCT_WRITE", "DISCOUNT_WRITE", "SALE_CREATE");
     final String cashier = TestTokens.token(2, 30, "GUEST", "SALE_CREATE");
+    final String otherCashier = TestTokens.token(4, 30, "GUEST", "SALE_CREATE");
     final String otherStore = TestTokens.token(3, 31, "GUEST", "SALE_CREATE");
 
     @Test
@@ -79,14 +82,15 @@ class SaleStockTest extends SharedContainers {
                 {"label":"Promo","percent":20,"targetType":"PRODUCT","targetId":%d,
                  "startsAt":"2020-01-01T00:00:00Z","endsAt":"2100-01-01T00:00:00Z"}""".formatted(cheap));
 
-        call(post("/internal/stock/decrement"), cashier, """
+        call(internal(post("/internal/stock/decrement")), cashier, """
                 {"lines":[{"productId":%d,"qty":2},{"productId":%d,"qty":1}]}""".formatted(cheap, cheap))
-                .andExpect(jsonPath("$[0].discountPercent").value(20))
-                .andExpect(jsonPath("$[0].finalUnitPrice").value(80.0));
+                .andExpect(jsonPath("$.reservationId").isNotEmpty())
+                .andExpect(jsonPath("$.lines[0].discountPercent").value(20))
+                .andExpect(jsonPath("$.lines[0].finalUnitPrice").value(80.0));
         call(get("/catalog/products/" + cheap), admin, null).andExpect(jsonPath("$.stockQty").value(7));
 
         // le 2e produit manque : la sortie du 1er est annulée aussi
-        call(post("/internal/stock/decrement"), cashier, """
+        call(internal(post("/internal/stock/decrement")), cashier, """
                 {"lines":[{"productId":%d,"qty":1},{"productId":%d,"qty":5}]}""".formatted(cheap, rare))
                 .andExpect(status().isConflict());
         call(get("/catalog/products/" + cheap), admin, null).andExpect(jsonPath("$.stockQty").value(7));
@@ -125,6 +129,36 @@ class SaleStockTest extends SharedContainers {
         call(get("/catalog/products/" + product), admin, null).andExpect(jsonPath("$.stockQty").value(10));
     }
 
+    @Test
+    void routesInternes_exigentLeSecretDeService_etLaCompensationEstAUsageUnique() throws Exception {
+        int product = newProduct("Sucre", 10, 1);
+        String body = "{\"lines\":[{\"productId\":%d,\"qty\":3}]}".formatted(product);
+
+        // un caissier qui joint le catalogue avec son seul JWT est refusé, même avec la bonne permission
+        call(post("/internal/stock/decrement"), cashier, body).andExpect(status().isForbidden());
+        call(post("/internal/stock/decrement").header(InternalApiFilter.HEADER, "mauvais-secret-mais-de-plus-de-32-octets"),
+                cashier, body).andExpect(status().isForbidden());
+        call(get("/catalog/products/" + product), admin, null).andExpect(jsonPath("$.stockQty").value(10));
+
+        String reservation = JsonPath.read(call(internal(post("/internal/stock/decrement")), cashier, body)
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), "$.reservationId");
+        call(get("/catalog/products/" + product), admin, null).andExpect(jsonPath("$.stockQty").value(7));
+
+        // seul l'auteur de la sortie de stock peut la rendre, une seule fois, et rien d'autre que ce qui est sorti
+        String release = "/internal/stock/reservations/" + reservation + "/release";
+        call(internal(post(release)), otherCashier, null).andExpect(jsonPath("$.code").value("RESERVATION_NOT_RELEASABLE"));
+        call(internal(post(release)), otherStore, null).andExpect(status().isConflict());
+        call(internal(post(release)), cashier, null).andExpect(status().isNoContent());
+        call(internal(post(release)), cashier, null).andExpect(status().isConflict());
+        call(internal(post("/internal/stock/reservations/" + UUID.randomUUID() + "/release")), cashier, null)
+                .andExpect(status().isConflict());
+        call(get("/catalog/products/" + product), admin, null).andExpect(jsonPath("$.stockQty").value(10));
+    }
+
+    private static MockHttpServletRequestBuilder internal(MockHttpServletRequestBuilder req) {
+        return req.header(InternalApiFilter.HEADER, TestTokens.INTERNAL_SECRET);
+    }
+
     private int newProduct(String name, int stock, int threshold) throws Exception {
         String category = call(post("/catalog/categories"), admin, "{\"name\":\"Cat " + UUID.randomUUID() + "\"}")
                 .andReturn().getResponse().getContentAsString();
@@ -135,7 +169,7 @@ class SaleStockTest extends SharedContainers {
     }
 
     private ResultActions decrement(String token, int product, int qty) throws Exception {
-        return call(post("/internal/stock/decrement"), token,
+        return call(internal(post("/internal/stock/decrement")), token,
                 "{\"lines\":[{\"productId\":%d,\"qty\":%d}]}".formatted(product, qty));
     }
 

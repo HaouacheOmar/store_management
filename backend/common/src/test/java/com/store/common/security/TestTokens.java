@@ -15,6 +15,9 @@ public final class TestTokens {
 
     public static final String SECRET = "un-secret-de-test-suffisamment-long-32o";
 
+    /** Secret de service des routes /internal/** (InternalApiFilter). */
+    public static final String INTERNAL_SECRET = "secret-interne-de-test-au-moins-32-octets";
+
     private TestTokens() {
     }
 

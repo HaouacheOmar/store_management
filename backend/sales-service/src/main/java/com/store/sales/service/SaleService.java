@@ -3,6 +3,7 @@ package com.store.sales.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.store.common.contract.StockContract.Line;
 import com.store.common.contract.StockContract.PricedLine;
+import com.store.common.contract.StockContract.Reservation;
 import com.store.common.contract.StockContract.StockRequest;
 import com.store.common.events.Events;
 import com.store.common.events.Events.SaleEvent;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 @Service
@@ -53,7 +55,7 @@ public class SaleService {
 
     /**
      * Encaissement (IMPLEMENTATION §2.3) : 1) le catalogue sort le stock et fixe les prix ;
-     * 2) la vente et son événement sont enregistrés ensemble. Si 2) échoue, le stock est recrédité.
+     * 2) la vente et son événement sont enregistrés ensemble. Si 2) échoue, la réservation est rendue.
      */
     public Sale create(SaleRequest req) {
         var me = CurrentUser.get();
@@ -62,15 +64,15 @@ public class SaleService {
         var stockRequest = new StockRequest(qtyByProduct.entrySet().stream()
                 .map(e -> new Line(e.getKey(), e.getValue())).toList());
 
-        List<PricedLine> priced = callCatalog(() -> catalog.decrement(stockRequest));
+        Reservation reservation = callCatalog(() -> catalog.decrement(stockRequest));
 
         Sale sale = new Sale(me.storeId(), me.userId(), me.name(), me.today());
-        for (PricedLine p : priced) {
+        for (PricedLine p : reservation.lines()) {
             sale.addLine(new SaleLine(sale, p.productId(), p.productName(), p.categoryId(), p.categoryName(),
                     qtyByProduct.get(p.productId()), p.unitPrice(), p.discountPercent(), p.finalUnitPrice()));
         }
         if (req.cashReceived().compareTo(sale.getTotal()) < 0) {
-            compensate(stockRequest);
+            compensate(reservation.reservationId());
             throw new ApiException(HttpStatus.BAD_REQUEST, "INSUFFICIENT_CASH",
                     "Montant reçu insuffisant (total : %s)".formatted(sale.getTotal()),
                     Map.of("total", sale.getTotal()));
@@ -84,7 +86,7 @@ public class SaleService {
                 return saved;
             });
         } catch (RuntimeException e) {
-            compensate(stockRequest);
+            compensate(reservation.reservationId());
             throw e;
         }
     }
@@ -148,11 +150,11 @@ public class SaleService {
     }
 
     // ponytail: si la compensation échoue aussi, le stock reste sous-évalué (journalisé) ; une file de reprise si ça arrive en vrai
-    private void compensate(StockRequest stockRequest) {
+    private void compensate(UUID reservationId) {
         try {
-            catalog.increment(stockRequest);
+            catalog.release(reservationId);
         } catch (RuntimeException e) {
-            log.error("Compensation impossible, stock à corriger manuellement : {}", stockRequest, e);
+            log.error("Compensation impossible, réservation {} à rendre manuellement", reservationId, e);
         }
     }
 }

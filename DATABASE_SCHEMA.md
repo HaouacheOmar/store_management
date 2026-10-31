@@ -211,6 +211,27 @@ WHERE id = :id AND store_id = :storeId AND NOT deleted AND stock_qty >= :qty;
 -- 0 ligne modifiée => INSUFFICIENT_STOCK
 ```
 
+### 2.1 Réservations de stock (catalog_db, migration V4)
+Chaque sortie de stock d'une vente crée une réservation. C'est le seul moyen de la compenser : `release` passe
+`RESERVED -> RELEASED` atomiquement, si l'appelant en est l'auteur (même store, même utilisateur) et dans les 5 minutes.
+Purge quotidienne des réservations de plus d'un jour.
+```sql
+CREATE TABLE stock_reservation (
+    id           UUID         PRIMARY KEY,
+    store_id     BIGINT       NOT NULL,
+    user_id      BIGINT       NOT NULL,
+    status       VARCHAR(10)  NOT NULL CHECK (status IN ('RESERVED','RELEASED')),
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    released_at  TIMESTAMPTZ
+);
+CREATE TABLE stock_reservation_line (
+    reservation_id  UUID     NOT NULL REFERENCES stock_reservation(id) ON DELETE CASCADE,
+    product_id      BIGINT   NOT NULL,
+    qty             INTEGER  NOT NULL CHECK (qty > 0),
+    PRIMARY KEY (reservation_id, product_id)
+);
+```
+
 ## 3. supplier_db (supplier-service)
 
 ```sql
