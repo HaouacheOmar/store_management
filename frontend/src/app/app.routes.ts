@@ -22,6 +22,19 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
+      // consultation ouverte à tout le store ; les écritures sont masquées sans permission et refusées par l'API
+      {
+        path: 'products',
+        loadComponent: () => import('./features/products/products').then((m) => m.Products),
+      },
+      {
+        path: 'categories',
+        loadComponent: () => import('./features/categories/categories').then((m) => m.Categories),
+      },
+      {
+        path: 'suppliers',
+        loadComponent: () => import('./features/suppliers/suppliers').then((m) => m.Suppliers),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -61,12 +61,30 @@ services:
       postgres: { condition: service_healthy }
       discovery: { condition: service_started }
 
+  catalog:
+    build: { context: ./backend, args: { MODULE: catalog-service } }
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/catalog_db
+    depends_on:
+      postgres: { condition: service_healthy }
+      discovery: { condition: service_started }
+
+  supplier:
+    build: { context: ./backend, args: { MODULE: supplier-service } }
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/supplier_db
+    depends_on:
+      postgres: { condition: service_healthy }
+      discovery: { condition: service_started }
+
   frontend:
     build: ./frontend
     ports: [ "${FRONTEND_PORT:-4200}:80" ]
     depends_on: [ gateway ]
 
-  # Lots suivants : catalog, supplier, sales, reporting (même modèle que auth).
+  # Lots suivants : sales, reporting (même modèle que auth).
 
 volumes:
   pgdata:

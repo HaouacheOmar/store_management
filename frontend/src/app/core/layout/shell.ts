@@ -25,21 +25,23 @@ import { ROLE_LABELS } from '../auth/labels';
   ],
   template: `
     <mat-sidenav-container class="shell">
-      <mat-sidenav #nav [mode]="mobile() ? 'over' : 'side'" [opened]="!mobile()">
+      <mat-sidenav #sidenav [mode]="mobile() ? 'over' : 'side'" [opened]="!mobile()">
         <div class="brand">{{ session()?.storeName }}</div>
         <mat-nav-list>
-          <a mat-list-item routerLink="/dashboard" routerLinkActive #rla="routerLinkActive"
-             [activated]="rla.isActive" (click)="mobile() && nav.close()">
-            <mat-icon matListItemIcon>dashboard</mat-icon>
-            <span matListItemTitle>Tableau de bord</span>
-          </a>
+          @for (item of nav; track item.path) {
+            <a mat-list-item [routerLink]="item.path" routerLinkActive #rla="routerLinkActive"
+               [activated]="rla.isActive" (click)="mobile() && sidenav.close()">
+              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
         </mat-nav-list>
       </mat-sidenav>
 
       <mat-sidenav-content>
         <mat-toolbar>
           @if (mobile()) {
-            <button mat-icon-button (click)="nav.toggle()" aria-label="Ouvrir le menu">
+            <button mat-icon-button (click)="sidenav.toggle()" aria-label="Ouvrir le menu">
               <mat-icon>menu</mat-icon>
             </button>
           }
@@ -63,6 +65,12 @@ import { ROLE_LABELS } from '../auth/labels';
   `,
 })
 export class Shell {
+  protected readonly nav = [
+    { path: '/dashboard', icon: 'dashboard', label: 'Tableau de bord' },
+    { path: '/products', icon: 'inventory_2', label: 'Produits' },
+    { path: '/categories', icon: 'category', label: 'Catégories' },
+    { path: '/suppliers', icon: 'local_shipping', label: 'Fournisseurs' },
+  ];
   protected readonly auth = inject(AuthService);
   protected readonly session = this.auth.session;
   protected readonly role = computed(() => {

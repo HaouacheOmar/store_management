@@ -56,3 +56,53 @@ html, body { height: 100%; }
   .switch { margin: 24px 0 0; text-align: center; }
 }
 .form-error { color: var(--mat-sys-error); margin: 0 0 8px; }
+
+// Pages de l'app
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  h1 { font: var(--mat-sys-headline-small); margin: 0; }
+}
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  td.num, th.num { text-align: right; }
+  td.actions { text-align: right; white-space: nowrap; width: 1%; }
+}
+.muted { color: var(--mat-sys-on-surface-variant); font: var(--mat-sys-body-small); }
+.empty { padding: 24px; margin: 0; text-align: center; color: var(--mat-sys-on-surface-variant); }
+
+// Niveau de stock : rupture / sous le seuil
+.stock {
+  display: inline-block;
+  min-width: 2.5em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  &.low { background: #fff1c2; color: #6b4e00; }
+  &.out { background: var(--mat-sys-error-container); color: var(--mat-sys-on-error-container); }
+}
+
+// Formulaires des dialogues : 2 colonnes, 1 sur mobile
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+  padding-top: 4px;
+  .full { grid-column: 1 / -1; }
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+.danger { --mat-button-filled-container-color: var(--mat-sys-error); --mat-button-filled-label-text-color: var(--mat-sys-on-error); }

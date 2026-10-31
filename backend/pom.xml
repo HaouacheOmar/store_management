@@ -21,6 +21,8 @@
         <module>discovery-service</module>
         <module>api-gateway</module>
         <module>auth-service</module>
+        <module>catalog-service</module>
+        <module>supplier-service</module>
     </modules>
 
     <properties>
@@ -43,6 +45,13 @@
                 <groupId>com.store</groupId>
                 <artifactId>common</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.store</groupId>
+                <artifactId>common</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

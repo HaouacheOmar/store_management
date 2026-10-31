@@ -269,6 +269,8 @@ Chaque service a un `Dockerfile` multi-stage (maven → eclipse-temurin:21-jre).
 - CORS : inutile, car le front appelle `/api` sur la même origine (proxy Angular en dev, nginx en prod).
 
 ## 9. Tests (minimum attendu)
+Tests d'intégration par service : `@SpringBootTest` + Testcontainers (vrai PostgreSQL) + MockMvc. Les JWT de test viennent de `TestTokens` (test-jar du module `common`).
+
 - **catalog** : résolution de la remise (produit vs catégorie, la plus forte, bornes de dates) ; décrément concurrent sans survente (Testcontainers Postgres, 2 threads).
 - **sales** : vente refusée en cas de stock insuffisant, calcul du rendu de monnaie, compensation.
 - **reporting** : un événement consommé deux fois n'est compté qu'une fois ; une annulation retire bien des totaux.
