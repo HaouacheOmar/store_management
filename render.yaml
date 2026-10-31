@@ -49,11 +49,11 @@ envVarGroups:
       - key: AUTH_URL
         value: https://store-auth.onrender.com
       - key: CATALOG_URL
-        value: https://store-catalog.onrender.com
+        value: https://store-catalog-9qh4.onrender.com
       - key: SUPPLIER_URL
         value: https://store-supplier.onrender.com
       - key: SALES_URL
-        value: https://store-sales.onrender.com
+        value: https://store-sales-bvd0.onrender.com
       - key: REPORTING_URL
         value: https://store-reporting.onrender.com
 
